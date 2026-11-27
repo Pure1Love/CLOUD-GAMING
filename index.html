@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131e">
+  <meta name="description" content="Keep your browser games together and play them from your library.">
+  <title>Game Space — your games, together</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#home" aria-label="Game Space home"><span class="brand-icon">G</span><span>game<span class="brand-light">space</span></span></a>
+    <nav><a class="active" href="#library">My library</a><a href="#about" id="aboutLink">How it works</a></nav>
+    <button class="button button-small" id="addTop">＋ Add a game</button>
+  </header>
+  <main id="home">
+    <section class="welcome">
+      <div class="welcome-copy"><span class="kicker">YOUR PERSONAL GAME SPACE</span><h1>Your games.<br><span>One place.</span></h1><p>Add browser games to your library and play them right here. Your library stays saved in this browser.</p><button class="button" id="addHero">＋ &nbsp; Add a game</button></div>
+      <div class="welcome-art" aria-hidden="true"><div class="ring ring-a"></div><div class="ring ring-b"></div><div class="orb">▶</div><span class="spark s1">✦</span><span class="spark s2">✧</span><span class="art-caption">YOUR<br>GAME<br>SPACE</span></div>
+    </section>
+    <section class="library" id="library">
+      <div class="section-top"><div><span class="kicker">READY WHEN YOU ARE</span><h2>My library <span id="gameCount">0</span></h2></div><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Find a game" aria-label="Search games"></label></div>
+      <div class="game-grid" id="games" aria-live="polite"></div>
+      <div class="empty" id="empty"><div class="empty-icon">＋</div><h3>Your library is waiting</h3><p>Add a browser game file (.html) or a game archive (.zip) to get started.</p><button class="button" id="addEmpty">Add your first game</button></div>
+    </section>
+    <section class="notice"><span class="notice-icon">ⓘ</span><p><strong>What can I play here?</strong> Browser games made for HTML can run in this page. Windows, Mac, and console game files need their own compatible game platform; importing them here won't make them run in a browser. Your imported files are stored only in this browser on this device.</p></section>
+    <footer><span>GAMESPACE</span><span>Personal browser game library · No account required</span></footer>
+  </main>
+  <input id="filePicker" type="file" accept=".html,.htm,.zip" multiple hidden>
+  <dialog id="playDialog" class="play-dialog"><div class="play-head"><div><span class="kicker">NOW PLAYING</span><strong id="playingTitle">Game</strong></div><button id="closePlay" class="close" aria-label="Close game">×</button></div><div id="playArea" class="play-area"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
