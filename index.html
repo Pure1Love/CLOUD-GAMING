@@ -2,36 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#10131e">
-  <meta name="description" content="Keep your browser games together and play them from your library.">
-  <title>Game Space — your games, together</title>
+  <meta name="description" content="A private, on-device library for organizing Android app packages.">
+  <title>APK Space — your app library</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#home" aria-label="Game Space home"><span class="brand-icon">G</span><span>game<span class="brand-light">space</span></span></a>
-    <nav><a class="active" href="#library">My library</a><a href="#about" id="aboutLink">How it works</a></nav>
-    <button class="button button-small" id="addTop">＋ Add a game</button>
+    <a class="brand" href="#home" aria-label="APK Space home"><span class="brand-icon">A</span><span>apk<span class="brand-light">space</span></span></a>
+    <nav><a class="active" href="#library">My apps</a><a href="#about" id="aboutLink">How it works</a></nav>
+    <button class="button button-small" id="addTop">＋ Import APK</button>
   </header>
   <main id="home">
     <section class="welcome">
-      <div class="welcome-copy"><span class="kicker">YOUR PERSONAL GAME SPACE</span><h1>Your games.<br><span>One place.</span></h1><p>Add browser games to your library and play them right here. Your library stays saved in this browser.</p><button class="button" id="addHero">＋ &nbsp; Add a game</button></div>
-      <div class="welcome-art" aria-hidden="true"><div class="ring ring-a"></div><div class="ring ring-b"></div><div class="orb">▶</div><span class="spark s1">✦</span><span class="spark s2">✧</span><span class="art-caption">YOUR<br>GAME<br>SPACE</span></div>
+      <div class="welcome-copy"><span class="kicker">YOUR PERSONAL APP LIBRARY</span><h1>Your apps.<br><span>One space.</span></h1><p>Keep APK files together on this device. Download an APK when you want Android to try installing it.</p><button class="button" id="addHero">＋ &nbsp; Import APK files</button></div>
+      <div class="welcome-art" aria-hidden="true"><div class="ring ring-a"></div><div class="ring ring-b"></div><div class="orb">A</div><span class="spark s1">✦</span><span class="spark s2">✧</span><span class="art-caption">YOUR<br>APP<br>SPACE</span></div>
     </section>
     <section class="library" id="library">
-      <div class="section-top"><div><span class="kicker">READY WHEN YOU ARE</span><h2>My library <span id="gameCount">0</span></h2></div><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Find a game" aria-label="Search games"></label></div>
-      <div class="game-grid" id="games" aria-live="polite"></div>
-      <div class="empty" id="empty"><div class="empty-icon">＋</div><h3>Your library is waiting</h3><p>Add a browser game file (.html) or a game archive (.zip) to get started.</p><button class="button" id="addEmpty">Add your first game</button></div>
+      <div class="section-top"><div><span class="kicker">SAVED ON THIS DEVICE</span><h2>My apps <span id="appCount">0</span></h2></div><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Find an app" aria-label="Search apps"></label></div>
+      <div class="app-grid" id="apps" aria-live="polite"></div>
+      <div class="empty" id="empty"><div class="empty-icon">＋</div><h3>Your app space is empty</h3><p>Import an APK, XAPK, APKS, or AAB file to keep it in this browser.</p><button class="button" id="addEmpty">Import your first file</button></div>
     </section>
-    <section class="notice"><span class="notice-icon">ⓘ</span><p><strong>What can I play here?</strong> Browser games made for HTML can run in this page. Windows, Mac, and console game files need their own compatible game platform; importing them here won't make them run in a browser. Your imported files are stored only in this browser on this device.</p></section>
-    <footer><span>GAMESPACE</span><span>Personal browser game library · No account required</span></footer>
+    <section class="notice" id="about"><span class="notice-icon">ⓘ</span><div><strong>Important: this is an APK library, not an Android emulator.</strong><p>Your files stay in this browser on this device; they are not uploaded to cloud storage. Use <b>Download to install</b> to hand a single APK to Android's installer. A web page cannot install or run APKs itself, and an incompatible app may still not work. XAPK/APKS bundles, AAB files, and apps needing unsupported Android versions, hardware, or services may need other tools or may not run at all.</p><p>Only install APKs from sources you trust. Sideloading can put your device and data at risk.</p></div></section>
+    <footer><span>APK SPACE</span><span>Private on-device APK library · No account required</span></footer>
   </main>
-  <input id="filePicker" type="file" accept=".html,.htm,.zip" multiple hidden>
-  <dialog id="playDialog" class="play-dialog"><div class="play-head"><div><span class="kicker">NOW PLAYING</span><strong id="playingTitle">Game</strong></div><button id="closePlay" class="close" aria-label="Close game">×</button></div><div id="playArea" class="play-area"></div></dialog>
+  <input id="filePicker" type="file" accept=".apk,.xapk,.apks,.aab,application/vnd.android.package-archive" multiple hidden>
+  <dialog id="detailDialog" class="detail-dialog"><div class="detail-head"><div><span class="kicker">APP FILE</span><strong id="detailTitle">App</strong></div><button id="closeDetail" class="close" aria-label="Close details">×</button></div><div class="detail-body"><div class="app-icon-large">A</div><p id="detailMessage"></p><div class="detail-warning" id="detailWarning"></div><div class="detail-actions"><button id="downloadInstall" class="button">Download to install</button><button id="closeDetailSecondary" class="button button-secondary">Close</button></div></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

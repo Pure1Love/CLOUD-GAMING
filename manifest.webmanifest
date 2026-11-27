@@ -1,9 +1,9 @@
 {
-  "name": "Game Space",
-  "short_name": "Game Space",
+  "name": "APK Space",
+  "short_name": "APK Space",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#10131e",
   "theme_color": "#10131e",
-  "description": "A personal browser game library."
+  "description": "A personal, on-device Android app package library."
 }

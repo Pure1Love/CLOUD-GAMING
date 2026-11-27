@@ -1,6 +1,6 @@
-const DB_NAME = 'gamespace-library';
+const DB_NAME = 'apk-space-library';
 const DB_VERSION = 1;
-const STORE = 'games';
+const STORE = 'packages';
 const dbPromise = new Promise((resolve, reject) => {
   const request = indexedDB.open(DB_NAME, DB_VERSION);
   request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: 'id' });
@@ -8,14 +8,14 @@ const dbPromise = new Promise((resolve, reject) => {
   request.onerror = () => reject(request.error);
 });
 const picker = document.getElementById('filePicker');
-const grid = document.getElementById('games');
+const grid = document.getElementById('apps');
 const empty = document.getElementById('empty');
-const dialog = document.getElementById('playDialog');
+const dialog = document.getElementById('detailDialog');
 const toast = document.getElementById('toast');
 let toastTimer;
-let activeUrl = null;
+let selectedPackage = null;
 
-async function getGames() {
+async function allPackages() {
   const db = await dbPromise;
   return new Promise((resolve, reject) => {
     const request = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
@@ -23,15 +23,17 @@ async function getGames() {
     request.onerror = () => reject(request.error);
   });
 }
-async function saveGame(game) {
+async function savePackage(app) {
   const db = await dbPromise;
   return new Promise((resolve, reject) => {
-    const request = db.transaction(STORE, 'readwrite').objectStore(STORE).put(game);
-    request.onsuccess = resolve;
-    request.onerror = () => reject(request.error);
+    const transaction = db.transaction(STORE, 'readwrite');
+    transaction.objectStore(STORE).put(app);
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error || new Error('Storage limit reached'));
   });
 }
-async function removeGame(id) {
+async function deletePackage(id) {
   const db = await dbPromise;
   return new Promise((resolve, reject) => {
     const request = db.transaction(STORE, 'readwrite').objectStore(STORE).delete(id);
@@ -42,117 +44,128 @@ async function removeGame(id) {
 function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
-function fileSize(bytes) {
-  return bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+function prettySize(bytes) {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
+function extensionOf(name) { return name.split('.').pop().toLowerCase(); }
+function typeLabel(type) { return ({ apk: 'APK · INSTALLABLE FILE', xapk: 'XAPK · APP BUNDLE', apks: 'APKS · SPLIT BUNDLE', aab: 'AAB · APP BUNDLE' })[type] || type.toUpperCase(); }
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3800);
 }
 async function render() {
-  const games = await getGames();
+  const packages = await allPackages();
   const query = document.getElementById('search').value.trim().toLowerCase();
-  const visible = games.filter(game => game.name.toLowerCase().includes(query));
-  document.getElementById('gameCount').textContent = String(games.length);
+  const visible = packages.filter(app => app.name.toLowerCase().includes(query) || app.type.includes(query));
+  document.getElementById('appCount').textContent = String(packages.length);
   grid.classList.toggle('hidden', visible.length === 0);
   empty.classList.toggle('hidden', visible.length > 0);
-  grid.innerHTML = visible.map((game, index) => `
+  grid.innerHTML = visible.map((app, index) => `
     <article class="card">
-      <div class="cover ${game.kind === 'html' ? `cover-color-${index % 4}` : 'cover-import'}"><span class="cover-tag">${game.kind === 'html' ? 'BROWSER GAME' : 'GAME ARCHIVE'}</span></div>
-      <div class="card-bottom"><div class="card-title"><strong title="${escapeHTML(game.name)}">${escapeHTML(game.name)}</strong><button class="delete" data-delete="${escapeHTML(game.id)}" aria-label="Delete ${escapeHTML(game.name)}">×</button></div>
-      <div class="card-meta"><span>${escapeHTML(fileSize(game.size))}</span>${game.kind === 'html' ? '<a href="#play" class="play-link" data-play="' + escapeHTML(game.id) + '">Play →</a>' : '<span>Archive</span>'}</div></div>
+      <button class="card-open" data-open="${escapeHTML(app.id)}" aria-label="View ${escapeHTML(app.name)} details">
+        <div class="cover cover-color-${index % 4}"><span class="cover-tag">${escapeHTML(app.type.toUpperCase())}</span></div>
+        <div class="card-bottom"><strong class="app-title" title="${escapeHTML(app.name)}">${escapeHTML(app.name)}</strong><span class="card-meta"><span>${escapeHTML(prettySize(app.size))}</span><span class="file-type">${escapeHTML(app.type.toUpperCase())}</span></span></div>
+      </button>
+      <button class="delete" data-delete="${escapeHTML(app.id)}" aria-label="Remove ${escapeHTML(app.name)}">×</button>
     </article>`).join('');
-  grid.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', async () => {
-    const game = games.find(item => item.id === button.dataset.delete);
-    if (!game || !confirm(`Remove “${game.name}” from this browser?`)) return;
-    await removeGame(game.id); await render(); showToast('Game removed from this browser.');
+  grid.querySelectorAll('[data-open]').forEach(button => button.addEventListener('click', () => {
+    const app = visible.find(item => item.id === button.dataset.open);
+    if (app) showDetails(app);
   }));
-  grid.querySelectorAll('[data-play]').forEach(button => button.addEventListener('click', async event => {
-    event.preventDefault();
-    const game = games.find(item => item.id === button.dataset.play);
-    if (game) playGame(game);
+  grid.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', async () => {
+    const app = packages.find(item => item.id === button.dataset.delete);
+    if (!app || !confirm(`Remove “${app.name}” from this browser? This deletes its saved copy.`)) return;
+    await deletePackage(app.id);
+    await render();
+    showToast('File removed from this browser.');
   }));
 }
-function launchPicker() { picker.click(); }
-document.getElementById('addTop').addEventListener('click', launchPicker);
-document.getElementById('addHero').addEventListener('click', launchPicker);
-document.getElementById('addEmpty').addEventListener('click', launchPicker);
-document.getElementById('search').addEventListener('input', render);
+function chooseFiles() { picker.click(); }
+document.getElementById('addTop').addEventListener('click', chooseFiles);
+document.getElementById('addHero').addEventListener('click', chooseFiles);
+document.getElementById('addEmpty').addEventListener('click', chooseFiles);
+document.getElementById('search').addEventListener('input', () => render().catch(() => showToast('Could not read the app library.')));
 picker.addEventListener('change', async () => {
   const files = Array.from(picker.files || []);
   picker.value = '';
   if (!files.length) return;
+  let added = 0;
   for (const file of files) {
-    const extension = file.name.split('.').pop().toLowerCase();
-    if (!['html', 'htm', 'zip'].includes(extension)) {
-      showToast(`${file.name}: add an HTML browser game or ZIP archive.`);
-      continue;
-    }
-    if (extension === 'zip' && typeof JSZip === 'undefined') {
-      showToast('ZIP support needs an internet connection to load the archive reader.');
+    const type = extensionOf(file.name);
+    if (!['apk', 'xapk', 'apks', 'aab'].includes(type)) {
+      showToast(`${file.name}: choose an APK, XAPK, APKS, or AAB file.`);
       continue;
     }
     try {
-      let content = file;
-      let entry = null;
-      let kind = extension === 'zip' ? 'zip' : 'html';
-      if (extension === 'zip') {
-        const zip = await JSZip.loadAsync(file);
-        const htmlFiles = Object.values(zip.files).filter(item => !item.dir && /\.html?$/i.test(item.name));
-        entry = htmlFiles.find(item => /(^|\/)index\.html?$/i.test(item.name)) || htmlFiles[0];
-        if (!entry) { showToast(`${file.name}: no HTML game entry was found in the ZIP.`); continue; }
-        content = await entry.async('blob');
-        if (entry.name.includes('/')) {
-          // Browser archives are imported as a launchable entry file. Games using extra loose assets may need a self-contained HTML build.
-          kind = 'html';
-        } else kind = 'html';
-      }
-      const name = extension === 'zip' ? file.name.replace(/\.zip$/i, '') : file.name.replace(/\.html?$/i, '');
-      await saveGame({ id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, name: name || 'Browser game', kind, size: file.size, content, entry: entry ? entry.name : file.name, added: Date.now() });
+      await savePackage({
+        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+        name: file.name.replace(/\.(apk|xapk|apks|aab)$/i, '') || 'Android app',
+        filename: file.name,
+        type,
+        size: file.size,
+        blob: file,
+        added: Date.now()
+      });
+      added++;
     } catch (error) {
       console.error(error);
-      showToast(`Could not import ${file.name}. Check that the file is a valid game.`);
+      showToast('Could not save this file. Your browser may have run out of storage space.');
     }
   }
   await render();
-  showToast('Import complete. Your files are saved in this browser on this device.');
+  if (added) showToast(`${added} file${added === 1 ? '' : 's'} saved in this browser on this device.`);
 });
-async function playGame(game) {
-  const source = await game.content.text();
-  // Sandbox scripts without same-origin access; imported games cannot access this site's storage or parent page.
-  const frame = document.createElement('iframe');
-  frame.setAttribute('title', game.name);
-  frame.setAttribute('sandbox', 'allow-scripts allow-pointer-lock allow-forms');
-  frame.setAttribute('referrerpolicy', 'no-referrer');
-  frame.srcdoc = source;
-  const playArea = document.getElementById('playArea');
-  playArea.replaceChildren(frame);
-  document.getElementById('playingTitle').textContent = game.name;
+function showDetails(app) {
+  selectedPackage = app;
+  document.getElementById('detailTitle').textContent = app.name;
+  document.getElementById('detailMessage').textContent = `${app.filename} · ${prettySize(app.size)}. This saved copy is available only in this browser on this device.`;
+  const warning = app.type === 'apk'
+    ? 'Android may offer to install this APK after download. You may need to allow installs from this browser. The app can still be incompatible with your Android version, CPU, device features, or required services.'
+    : app.type === 'aab'
+      ? 'AAB is a publishing bundle, not a directly installable APK. Downloading it does not install the app; it must first be converted or delivered by a compatible app-distribution tool.'
+      : 'This is a split-app bundle. Android may not install it by tapping the file; a trusted installer that supports this bundle format may be required. Compatibility is not guaranteed.';
+  document.getElementById('detailWarning').textContent = warning;
+  const installButton = document.getElementById('downloadInstall');
+  installButton.textContent = app.type === 'apk' ? 'Download to install' : 'Download file';
   dialog.showModal();
 }
-function closeGame() {
-  document.getElementById('playArea').replaceChildren();
-  if (activeUrl) { URL.revokeObjectURL(activeUrl); activeUrl = null; }
+document.getElementById('downloadInstall').addEventListener('click', () => {
+  if (!selectedPackage) return;
+  const url = URL.createObjectURL(selectedPackage.blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = selectedPackage.filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
   dialog.close();
-}
-document.getElementById('closePlay').addEventListener('click', closeGame);
-dialog.addEventListener('click', event => { if (event.target === dialog) closeGame(); });
+  showToast(selectedPackage.type === 'apk' ? 'Downloaded. Open the APK from Downloads and follow Android’s installer prompts.' : 'Downloaded. This bundle format may need a compatible installer.');
+});
+function closeDetails() { dialog.close(); selectedPackage = null; }
+document.getElementById('closeDetail').addEventListener('click', closeDetails);
+document.getElementById('closeDetailSecondary').addEventListener('click', closeDetails);
+dialog.addEventListener('click', event => { if (event.target === dialog) closeDetails(); });
 document.getElementById('aboutLink').addEventListener('click', event => {
-  event.preventDefault(); document.querySelector('.notice').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  event.preventDefault(); document.getElementById('about').scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 const banner = document.querySelector('.welcome');
 banner.addEventListener('dragover', event => { event.preventDefault(); banner.classList.add('dragging'); });
 banner.addEventListener('dragleave', () => banner.classList.remove('dragging'));
 banner.addEventListener('drop', event => {
   event.preventDefault(); banner.classList.remove('dragging');
+  const files = Array.from(event.dataTransfer.files || []);
+  if (!files.length) return;
   const transfer = new DataTransfer();
-  for (const file of event.dataTransfer.files) transfer.items.add(file);
+  files.forEach(file => transfer.items.add(file));
   picker.files = transfer.files;
   picker.dispatchEvent(new Event('change'));
 });
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
-render().catch(error => { console.error(error); showToast('Could not open the game library in this browser.'); });
+render().catch(error => { console.error(error); showToast('Could not open the app library in this browser.'); });
